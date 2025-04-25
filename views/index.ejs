@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Video Optimizer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-top: 50px;
+      color: #2c3e50;
+    }
+
+    form {
+      background: #fff;
+      padding: 30px 40px;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+      margin-top: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    input[type="file"] {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background-color: #f9f9f9;
+      cursor: pointer;
+    }
+
+    button {
+      background: #3498db;
+      color: #fff;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    table {
+      margin-top: 40px;
+      border-collapse: collapse;
+      width: 60%;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    th, td {
+      padding: 15px 25px;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background-color: #3498db;
+      color: white;
+      font-weight: normal;
+    }
+
+    a {
+      margin-top: 20px;
+      display: inline-block;
+      text-decoration: none;
+      color: #3498db;
+      font-weight: bold;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+    .spinner {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  text-align: center;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+  </style>
+</head>
+<body>
+  <h1>🎬 Video Optimizer</h1>
+<!-- Loader Spinner -->
+<div id="loader" style="display: none; margin-top: 30px;">
+  <div class="spinner"></div>
+  <p>Uploading and optimizing video...⏳</p>
+</div>
+
+  <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+    <input type="file" name="video" accept="video/*" required />
+    <button type="submit">Upload & Optimize</button>
+  </form>
+
+  <% if (original && optimized) { %>
+    <h2>Optimization Result</h2>
+    <table>
+      <tr><th>Video</th><th>Size (MB)</th></tr>
+      <tr><td>Original</td><td><%= original.size %></td></tr>
+      <tr><td>Optimized</td><td><%= optimized.size %></td></tr>
+    </table>
+
+    <p><a href="<%= optimized.url %>" download>⬇️ Download Optimized Video</a></p>
+  <% } %>
+  <script>
+    const form = document.getElementById('uploadForm');
+    const loader = document.getElementById('loader');
+  
+    form.addEventListener('submit', function () {
+      loader.style.display = 'block';
+    });
+  </script>
+  
+</body>
+</html>
