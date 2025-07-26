@@ -20,6 +20,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/upload', upload.single('video'), async (req, res) => {
+  const startTime = Date.now();
   try {
 const result = await cloudinary.uploader.upload(req.file.path, {
   resource_type: 'video',
@@ -46,7 +47,45 @@ const result = await cloudinary.uploader.upload(req.file.path, {
 
     // Example optimization: auto format and quality, scale width to 720px
     const optimizedUrl = result.eager[0].secure_url;
-    const optimizedSize = (result.eager[0].bytes / (1024 * 1024)).toFixed(2);    
+    const optimizedSize = (result.eager[0].bytes / (1024 * 1024)).toFixed(2);
+    const processingTime = Date.now() - startTime;
+
+    // Prepare data for n8n extraction
+    const extractionData = {
+      filename: req.file.originalname,
+      format: req.file.mimetype,
+      original: { size: originalsize },
+      optimized: { 
+        size: optimizedSize, 
+        url: optimizedUrl 
+      },
+      cloudinary_result: {
+        public_id: result.public_id,
+        resource_type: result.resource_type,
+        created_at: result.created_at,
+        width: result.width,
+        height: result.height,
+        duration: result.duration
+      },
+      transformation: { width: 1080, crop: 'scale', quality: 'auto' },
+      processing_time: processingTime
+    };
+
+    // Send data to n8n webhook for extraction (if webhook URL is configured)
+    if (process.env.N8N_WEBHOOK_URL) {
+      try {
+        const webhookResponse = await fetch(process.env.N8N_WEBHOOK_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(extractionData)
+        });
+        console.log('Data sent to n8n extraction workflow:', await webhookResponse.text());
+      } catch (webhookError) {
+        console.error('Failed to send data to n8n webhook:', webhookError);
+      }
+    }
 
     res.render('index', {
       original: {size: originalsize },
@@ -55,6 +94,28 @@ const result = await cloudinary.uploader.upload(req.file.path, {
 
   } catch (err) {
     console.error('Upload error:', err);
+    
+    // Send error data to n8n for failed processing tracking
+    if (process.env.N8N_WEBHOOK_URL) {
+      try {
+        const errorData = {
+          filename: req.file?.originalname || 'unknown',
+          error: err.message,
+          processing_time: Date.now() - startTime,
+          status: 'failed'
+        };
+        await fetch(process.env.N8N_WEBHOOK_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(errorData)
+        });
+      } catch (webhookError) {
+        console.error('Failed to send error data to n8n webhook:', webhookError);
+      }
+    }
+    
     res.send('Video upload failed');
   }
 });

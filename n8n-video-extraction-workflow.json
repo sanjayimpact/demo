@@ -1,0 +1,238 @@
+{
+  "name": "Video Compression Data Extractor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "video-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "4c4c4c4c-4c4c-4c4c-4c4c-4c4c4c4c4c4c",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "video-compression-hook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract video metadata and processing information\nconst inputData = $input.all();\nconst results = [];\n\nfor (const item of inputData) {\n  const body = item.json.body || item.json;\n  \n  // Extract video information\n  const extractedData = {\n    timestamp: new Date().toISOString(),\n    originalVideo: {\n      size_mb: body.original?.size || null,\n      filename: body.filename || 'unknown',\n      format: body.format || 'unknown'\n    },\n    optimizedVideo: {\n      size_mb: body.optimized?.size || null,\n      url: body.optimized?.url || null,\n      compression_ratio: null\n    },\n    processing: {\n      cloudinary_result: body.cloudinary_result || null,\n      transformation_applied: body.transformation || null,\n      processing_time: body.processing_time || null\n    }\n  };\n  \n  // Calculate compression ratio if both sizes available\n  if (extractedData.originalVideo.size_mb && extractedData.optimizedVideo.size_mb) {\n    const original = parseFloat(extractedData.originalVideo.size_mb);\n    const optimized = parseFloat(extractedData.optimizedVideo.size_mb);\n    extractedData.optimizedVideo.compression_ratio = ((original - optimized) / original * 100).toFixed(2) + '%';\n    extractedData.optimizedVideo.size_reduction = (original - optimized).toFixed(2) + ' MB';\n  }\n  \n  results.push({ json: extractedData });\n}\n\nreturn results;"
+      },
+      "id": "5d5d5d5d-5d5d-5d5d-5d5d-5d5d5d5d5d5d",
+      "name": "Extract Video Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition1",
+              "leftValue": "={{ $json.optimizedVideo.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6e6e6e6e-6e6e-6e6e-6e6e-6e6e6e6e6e6e",
+      "name": "Check if Processing Successful",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "append",
+        "fileId": {
+          "__rl": true,
+          "value": "your-google-sheet-id",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "original_size_mb": "={{ $json.originalVideo.size_mb }}",
+            "optimized_size_mb": "={{ $json.optimizedVideo.size_mb }}",
+            "compression_ratio": "={{ $json.optimizedVideo.compression_ratio }}",
+            "size_reduction": "={{ $json.optimizedVideo.size_reduction }}",
+            "download_url": "={{ $json.optimizedVideo.url }}",
+            "filename": "={{ $json.originalVideo.filename }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "7f7f7f7f-7f7f-7f7f-7f7f-7f7f7f7f7f7f",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-api-endpoint.com/video-processed",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "data",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8g8g8g8g-8g8g-8g8g-8g8g-8g8g8g8g8g8g",
+      "name": "Send to External API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "message": "Video compression failed for {{ $json.originalVideo.filename }}",
+        "additionalFields": {
+          "blocks": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*Video Processing Alert* 🚨\\n\\n*File:* {{ $json.originalVideo.filename }}\\n*Status:* Failed\\n*Timestamp:* {{ $json.timestamp }}"
+              }
+            }
+          ]
+        }
+      },
+      "id": "9h9h9h9h-9h9h-9h9h-9h9h-9h9h9h9h9h9h",
+      "name": "Slack Notification (Failed)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"received\", \"extracted_data\": $json } }}"
+      },
+      "id": "ahahahah-ahah-ahah-ahah-ahahahahahah",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Video Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Video Data": {
+      "main": [
+        [
+          {
+            "node": "Check if Processing Successful",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Processing Successful": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send to External API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack Notification (Failed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to External API": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Notification (Failed)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}
